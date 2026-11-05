@@ -27,6 +27,13 @@ business rules.
 The initial REST endpoints are `GET/POST /api/products`,
 `POST /api/stock-movements`, `GET /api/replenishment-recommendations`, and
 `GET /api/dashboard`. Validation and calculation logic stays in the backend.
+Every inventory query is scoped to the server-selected organization. The
+development-only `demo` profile selects the seeded demo organization; production
+has no organization provider configured and therefore fails closed until an
+authenticated organization context is implemented.
+Flyway migration `V2` creates the organization, user, and membership tables,
+adds tenant ownership to inventory records, and migrates the existing sample
+inventory into the dedicated demo organization.
 
 ## Run locally
 
@@ -43,8 +50,9 @@ npm install
 npm run dev
 ```
 
-In that case set `NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api` in
-`frontend/.env.local`.
+In that case run the API with `SPRING_PROFILES_ACTIVE=demo` and set the API URL
+in `frontend/.env.local` to `http://localhost:8081/api` when using Compose, or
+`http://localhost:8080/api` when running the API directly.
 
 ## Replenishment calculation (v1)
 
@@ -63,11 +71,13 @@ real orders.
 ## Commercialization status
 
 This repository is an initial development foundation, **not production-ready
-commercial software**. The first demo uses sample data and has no authentication,
-authorization, tenant isolation, or production secrets management. Compose
-binds application ports to localhost to avoid exposing the unauthenticated API
-to the network. Before external deployment, implement and test organization
-isolation, user authentication/roles, audit controls, backups, monitoring,
-privacy/retention policies, and production-grade configuration.
+commercial software**. The demo uses sample data and has no authentication,
+authorization, or production secrets management. Tenant scoping is in place,
+but the `demo` profile intentionally provides only one fixed demo organization;
+it is not a substitute for user authentication. Compose binds application ports
+to localhost. Before external deployment, implement and test user authentication,
+organization membership/roles, audit controls, backups, monitoring,
+privacy/retention policies, and production-grade configuration. Do not enable
+the `demo` profile in a public deployment.
 
 Do not use the seeded sample inventory as real business data.

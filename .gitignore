@@ -5,6 +5,7 @@ node_modules/
 out/
 target/
 *.log
+*.tsbuildinfo
 .idea/
 .vscode/
 frontend/coverage/

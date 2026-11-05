@@ -5,6 +5,7 @@ import com.stockpilot.inventory.InventoryDtos.MovementResponse;
 import com.stockpilot.inventory.InventoryDtos.ProductRequest;
 import com.stockpilot.inventory.InventoryDtos.ProductResponse;
 import com.stockpilot.inventory.InventoryDtos.Recommendation;
+import com.stockpilot.organization.OrganizationContext;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -26,36 +27,41 @@ public class InventoryService {
 
     private final ProductRepository products;
     private final StockMovementRepository movements;
+    private final OrganizationContext organizationContext;
     private final int demandWindowDays;
     private final int safetyStockDays;
 
     public InventoryService(ProductRepository products, StockMovementRepository movements,
+                            OrganizationContext organizationContext,
                             @Value("${app.replenishment.demand-window-days:30}") int demandWindowDays,
                             @Value("${app.replenishment.safety-stock-days:3}") int safetyStockDays) {
         this.products = products;
         this.movements = movements;
+        this.organizationContext = organizationContext;
         this.demandWindowDays = demandWindowDays;
         this.safetyStockDays = safetyStockDays;
     }
 
     @Transactional(readOnly = true)
     public List<ProductResponse> listProducts() {
-        Map<UUID, Long> balances = movements.getAllOnHand().stream()
+        UUID organizationId = organizationContext.currentOrganizationId();
+        Map<UUID, Long> balances = movements.getAllOnHand(organizationId).stream()
                 .collect(Collectors.toMap(StockAggregate::productId, StockAggregate::quantity));
-        return products.findAllByActiveTrueOrderByNameAsc().stream()
+        return products.findAllByOrganizationIdAndActiveTrueOrderByNameAsc(organizationId).stream()
                 .map(product -> toProductResponse(product, balances.getOrDefault(product.getId(), 0L)))
                 .toList();
     }
 
     @Transactional
     public ProductResponse createProduct(ProductRequest request) {
+        UUID organizationId = organizationContext.currentOrganizationId();
         String sku = request.sku().trim().toUpperCase(Locale.ROOT);
-        if (products.findBySkuIgnoreCase(sku).isPresent()) {
+        if (products.findByOrganizationIdAndSkuIgnoreCase(organizationId, sku).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "SKU already exists");
         }
         try {
             Product product = products.saveAndFlush(new Product(
-                    sku, request.name().trim(), request.category(),
+                    organizationId, sku, request.name().trim(), request.category(),
                     request.unit().trim(), request.minimumStock(), request.leadTimeDays(),
                     request.unitCost()));
             return toProductResponse(product, 0);
@@ -69,7 +75,8 @@ public class InventoryService {
 
     @Transactional
     public MovementResponse recordMovement(MovementRequest request) {
-        Product product = products.findByIdForUpdate(request.productId())
+        UUID organizationId = organizationContext.currentOrganizationId();
+        Product product = products.findByIdForUpdateAndOrganizationId(request.productId(), organizationId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
         if (request.quantity() == 0
                 || (request.type() != StockMovementType.ADJUSTMENT && request.quantity() < 0)) {
@@ -84,18 +91,19 @@ public class InventoryService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Adjustment cannot reduce stock below zero");
         }
         StockMovement movement = movements.save(new StockMovement(
-                product.getId(), request.type(), request.quantity(), Instant.now(), request.note()));
+                organizationId, product.getId(), request.type(), request.quantity(), Instant.now(), request.note()));
         return toMovementResponse(movement, product);
     }
 
     @Transactional(readOnly = true)
     public List<Recommendation> recommendations() {
+        UUID organizationId = organizationContext.currentOrganizationId();
         Instant since = Instant.now().minus(demandWindowDays, ChronoUnit.DAYS);
-        Map<UUID, Long> balances = movements.getAllOnHand().stream()
+        Map<UUID, Long> balances = movements.getAllOnHand(organizationId).stream()
                 .collect(Collectors.toMap(StockAggregate::productId, StockAggregate::quantity));
-        Map<UUID, Long> demand = movements.getAllOutboundSince(since).stream()
+        Map<UUID, Long> demand = movements.getAllOutboundSince(organizationId, since).stream()
                 .collect(Collectors.toMap(StockAggregate::productId, StockAggregate::quantity));
-        return products.findAllByActiveTrueOrderByNameAsc().stream()
+        return products.findAllByOrganizationIdAndActiveTrueOrderByNameAsc(organizationId).stream()
                 .map(product -> recommendation(product, balances.getOrDefault(product.getId(), 0L),
                         demand.getOrDefault(product.getId(), 0L)))
                 .filter(recommendation -> recommendation.recommendedQuantity() > 0)
@@ -104,9 +112,10 @@ public class InventoryService {
 
     @Transactional(readOnly = true)
     public List<MovementResponse> recentMovements() {
-        return movements.findTop8ByOrderByOccurredAtDesc().stream()
+        UUID organizationId = organizationContext.currentOrganizationId();
+        return movements.findTop8ByOrganizationIdOrderByOccurredAtDesc(organizationId).stream()
                 .map(movement -> {
-                    Product product = products.findById(movement.getProductId())
+                    Product product = products.findByIdAndOrganizationId(movement.getProductId(), organizationId)
                             .orElseThrow(() -> new IllegalStateException("Movement refers to a missing product"));
                     return toMovementResponse(movement, product);
                 })
@@ -115,12 +124,13 @@ public class InventoryService {
 
     @Transactional(readOnly = true)
     public long onHand(Product product) {
-        return movements.getOnHand(product.getId());
+        return movements.getOnHand(product.getOrganizationId(), product.getId());
     }
 
     @Transactional(readOnly = true)
     public Recommendation recommendation(Product product, Instant since) {
-        return recommendation(product, onHand(product), movements.getOutboundQuantitySince(product.getId(), since));
+        return recommendation(product, onHand(product),
+                movements.getOutboundQuantitySince(product.getOrganizationId(), product.getId(), since));
     }
 
     private Recommendation recommendation(Product product, long onHand, long demand) {
@@ -153,7 +163,7 @@ public class InventoryService {
     private boolean isSkuConflict(Throwable exception) {
         for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
             if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
-                    && "products_sku_key".equals(violation.getConstraintName())) {
+                    && "uq_products_organization_sku".equals(violation.getConstraintName())) {
                 return true;
             }
         }

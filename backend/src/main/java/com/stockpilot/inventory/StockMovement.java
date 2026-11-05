@@ -21,6 +21,10 @@ public class StockMovement {
     private UUID id;
 
     @NotNull
+    @Column(name = "organization_id", nullable = false, updatable = false)
+    private UUID organizationId;
+
+    @NotNull
     @Column(name = "product_id", nullable = false)
     private UUID productId;
 
@@ -42,7 +46,9 @@ public class StockMovement {
     protected StockMovement() {
     }
 
-    public StockMovement(UUID productId, StockMovementType type, int quantity, Instant occurredAt, String note) {
+    public StockMovement(UUID organizationId, UUID productId, StockMovementType type, int quantity,
+                         Instant occurredAt, String note) {
+        this.organizationId = organizationId;
         this.productId = productId;
         this.type = type;
         this.quantity = quantity;
@@ -51,6 +57,7 @@ public class StockMovement {
     }
 
     public UUID getId() { return id; }
+    public UUID getOrganizationId() { return organizationId; }
     public UUID getProductId() { return productId; }
     public StockMovementType getType() { return type; }
     public int getQuantity() { return quantity; }

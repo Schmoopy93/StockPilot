@@ -10,10 +10,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface ProductRepository extends JpaRepository<Product, UUID> {
-    List<Product> findAllByActiveTrueOrderByNameAsc();
-    Optional<Product> findBySkuIgnoreCase(String sku);
+    List<Product> findAllByOrganizationIdAndActiveTrueOrderByNameAsc(UUID organizationId);
+    Optional<Product> findByOrganizationIdAndSkuIgnoreCase(UUID organizationId, String sku);
+    Optional<Product> findByIdAndOrganizationId(UUID id, UUID organizationId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select p from Product p where p.id = :id")
-    Optional<Product> findByIdForUpdate(@Param("id") UUID id);
+    @Query("select p from Product p where p.id = :id and p.organizationId = :organizationId")
+    Optional<Product> findByIdForUpdateAndOrganizationId(
+            @Param("id") UUID id, @Param("organizationId") UUID organizationId);
 }

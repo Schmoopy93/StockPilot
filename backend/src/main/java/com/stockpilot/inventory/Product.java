@@ -21,9 +21,13 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @jakarta.validation.constraints.NotNull
+    @Column(name = "organization_id", nullable = false, updatable = false)
+    private UUID organizationId;
+
     @NotBlank
     @Size(max = 64)
-    @Column(nullable = false, unique = true, length = 64)
+    @Column(nullable = false, length = 64)
     private String sku;
 
     @NotBlank
@@ -58,8 +62,9 @@ public class Product {
     protected Product() {
     }
 
-    public Product(String sku, String name, String category, String unit, int minimumStock,
+    public Product(UUID organizationId, String sku, String name, String category, String unit, int minimumStock,
                    int leadTimeDays, BigDecimal unitCost) {
+        this.organizationId = organizationId;
         this.sku = sku;
         this.name = name;
         this.category = category;
@@ -71,6 +76,7 @@ public class Product {
     }
 
     public UUID getId() { return id; }
+    public UUID getOrganizationId() { return organizationId; }
     public String getSku() { return sku; }
     public String getName() { return name; }
     public String getCategory() { return category; }

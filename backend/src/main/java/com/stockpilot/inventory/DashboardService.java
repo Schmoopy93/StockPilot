@@ -11,11 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DashboardService {
 
-    private final ProductRepository products;
     private final InventoryService inventory;
 
-    public DashboardService(ProductRepository products, InventoryService inventory) {
-        this.products = products;
+    public DashboardService(InventoryService inventory) {
         this.inventory = inventory;
     }
 

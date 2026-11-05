@@ -17,6 +17,7 @@ services:
     build:
       context: ./backend
     environment:
+      SPRING_PROFILES_ACTIVE: demo
       SPRING_DATASOURCE_URL: ${DATABASE_URL:-jdbc:postgresql://db:5432/stockpilot}
       SPRING_DATASOURCE_USERNAME: ${DATABASE_USERNAME:-stockpilot}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}

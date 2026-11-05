@@ -16,18 +16,21 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, UU
                 else m.quantity
             end))
             from StockMovement m
+            where m.organizationId = :organizationId
             group by m.productId
             """)
-    List<StockAggregate> getAllOnHand();
+    List<StockAggregate> getAllOnHand(@Param("organizationId") UUID organizationId);
 
     @Query("""
             select new com.stockpilot.inventory.StockAggregate(m.productId, sum(m.quantity))
             from StockMovement m
             where m.type = com.stockpilot.inventory.StockMovementType.OUTBOUND
               and m.occurredAt >= :since
+              and m.organizationId = :organizationId
             group by m.productId
             """)
-    List<StockAggregate> getAllOutboundSince(@Param("since") Instant since);
+    List<StockAggregate> getAllOutboundSince(
+            @Param("organizationId") UUID organizationId, @Param("since") Instant since);
 
     @Query("""
             select coalesce(sum(case
@@ -36,9 +39,9 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, UU
                 else m.quantity
             end), 0)
             from StockMovement m
-            where m.productId = :productId
+            where m.productId = :productId and m.organizationId = :organizationId
             """)
-    long getOnHand(@Param("productId") UUID productId);
+    long getOnHand(@Param("organizationId") UUID organizationId, @Param("productId") UUID productId);
 
     @Query("""
             select coalesce(sum(m.quantity), 0)
@@ -46,8 +49,10 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, UU
             where m.productId = :productId
               and m.type = com.stockpilot.inventory.StockMovementType.OUTBOUND
               and m.occurredAt >= :since
+              and m.organizationId = :organizationId
             """)
-    long getOutboundQuantitySince(@Param("productId") UUID productId, @Param("since") Instant since);
+    long getOutboundQuantitySince(@Param("organizationId") UUID organizationId,
+                                  @Param("productId") UUID productId, @Param("since") Instant since);
 
-    List<StockMovement> findTop8ByOrderByOccurredAtDesc();
+    List<StockMovement> findTop8ByOrganizationIdOrderByOccurredAtDesc(UUID organizationId);
 }
