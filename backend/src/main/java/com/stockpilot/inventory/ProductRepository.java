@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface ProductRepository extends JpaRepository<Product, UUID> {
     List<Product> findAllByOrganizationIdAndActiveTrueOrderByNameAsc(UUID organizationId);
+    List<Product> findAllByOrganizationIdAndIdIn(UUID organizationId, List<UUID> ids);
     Optional<Product> findByOrganizationIdAndSkuIgnoreCase(UUID organizationId, String sku);
     Optional<Product> findByIdAndOrganizationId(UUID id, UUID organizationId);
 

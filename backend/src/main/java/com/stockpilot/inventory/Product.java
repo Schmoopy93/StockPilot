@@ -85,4 +85,15 @@ public class Product {
     public int getLeadTimeDays() { return leadTimeDays; }
     public BigDecimal getUnitCost() { return unitCost; }
     public boolean isActive() { return active; }
+
+    public void update(String sku, String name, String category, String unit, int minimumStock,
+                       int leadTimeDays, BigDecimal unitCost) {
+        this.sku = sku;
+        this.name = name;
+        this.category = category;
+        this.unit = unit;
+        this.minimumStock = minimumStock;
+        this.leadTimeDays = leadTimeDays;
+        this.unitCost = unitCost;
+    }
 }

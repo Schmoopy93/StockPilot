@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CurrencyProvider } from "@/components/currency-context";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="sr">
-      <body>{children}</body>
+      <body><CurrencyProvider>{children}</CurrencyProvider></body>
     </html>
   );
 }

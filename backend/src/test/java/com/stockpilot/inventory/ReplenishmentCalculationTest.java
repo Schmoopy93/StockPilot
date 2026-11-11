@@ -11,6 +11,10 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import com.stockpilot.currency.CurrencyService;
+import com.stockpilot.procurement.PurchaseOrderLineRepository;
+import com.stockpilot.procurement.PreferredSupplierProduct;
+import com.stockpilot.procurement.SupplierProductRepository;
 import com.stockpilot.inventory.InventoryDtos.MovementRequest;
 import com.stockpilot.organization.OrganizationContext;
 import org.junit.jupiter.api.Test;
@@ -31,14 +35,24 @@ class ReplenishmentCalculationTest {
     private StockMovementRepository movements;
 
     @Mock
+    private PurchaseOrderLineRepository orderLines;
+
+    @Mock
+    private SupplierProductRepository supplierProducts;
+
+    @Mock
     private OrganizationContext organizationContext;
+
+    @Mock
+    private CurrencyService currency;
 
     private InventoryService inventory;
     private final UUID organizationId = UUID.randomUUID();
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        inventory = new InventoryService(products, movements, organizationContext, 30, 3);
+        inventory = new InventoryService(products, movements, orderLines, supplierProducts,
+                organizationContext, currency, 30, 3);
     }
 
     @Test
@@ -73,6 +87,56 @@ class ReplenishmentCalculationTest {
 
         assertThat(result.recommendedQuantity()).isEqualTo(5L);
         assertThat(result.lowConfidence()).isTrue();
+    }
+
+    @Test
+    void subtractsOutstandingPurchaseOrderQuantitiesFromRecommendations() {
+        UUID id = UUID.randomUUID();
+        Product product = new Product(organizationId, "TEST-4", "Ordered item", "Test", "pcs", 8, 4,
+                new BigDecimal("1.00"));
+        ReflectionTestUtils.setField(product, "id", id);
+        when(organizationContext.currentOrganizationId()).thenReturn(organizationId);
+        when(movements.getAllOnHand(organizationId)).thenReturn(java.util.List.of());
+        when(movements.getAllOutboundSince(org.mockito.ArgumentMatchers.eq(organizationId),
+                org.mockito.ArgumentMatchers.any(Instant.class))).thenReturn(java.util.List.of());
+        when(orderLines.getOutstandingQuantities(org.mockito.ArgumentMatchers.eq(organizationId),
+                org.mockito.ArgumentMatchers.anyList())).thenReturn(java.util.List.of(new StockAggregate(id, 2)));
+        when(products.findAllByOrganizationIdAndActiveTrueOrderByNameAsc(organizationId))
+                .thenReturn(java.util.List.of(product));
+
+        var result = inventory.recommendations().getFirst();
+
+        assertThat(result.onOrder()).isEqualTo(2);
+        assertThat(result.recommendedQuantity()).isEqualTo(6);
+    }
+
+    @Test
+    void usesPreferredSupplierLeadTimePriceAndMinimumOrderQuantity() {
+        UUID id = UUID.randomUUID();
+        UUID supplierId = UUID.randomUUID();
+        Product product = new Product(organizationId, "TEST-5", "Preferred item", "Test", "pcs", 8, 8,
+                new BigDecimal("4.00"));
+        ReflectionTestUtils.setField(product, "id", id);
+        when(organizationContext.currentOrganizationId()).thenReturn(organizationId);
+        when(movements.getAllOnHand(organizationId)).thenReturn(java.util.List.of());
+        when(movements.getAllOutboundSince(org.mockito.ArgumentMatchers.eq(organizationId),
+                org.mockito.ArgumentMatchers.any(Instant.class))).thenReturn(java.util.List.of());
+        when(orderLines.getOutstandingQuantities(org.mockito.ArgumentMatchers.eq(organizationId),
+                org.mockito.ArgumentMatchers.anyList())).thenReturn(java.util.List.of());
+        when(supplierProducts.findPreferredByOrganizationId(organizationId)).thenReturn(java.util.List.of(
+                new PreferredSupplierProduct(id, supplierId, "Primary supplier", "SUP-5",
+                        new BigDecimal("2.75"), 10, 2)));
+        when(products.findAllByOrganizationIdAndActiveTrueOrderByNameAsc(organizationId))
+                .thenReturn(java.util.List.of(product));
+
+        var result = inventory.recommendations().getFirst();
+
+        assertThat(result.preferredSupplierId()).isEqualTo(supplierId);
+        assertThat(result.preferredSupplierName()).isEqualTo("Primary supplier");
+        assertThat(result.leadTimeDays()).isEqualTo(2);
+        assertThat(result.supplierUnitCost()).isEqualByComparingTo("2.75");
+        assertThat(result.recommendedQuantity()).isEqualTo(10);
+        assertThat(result.estimatedCost()).isEqualByComparingTo("27.50");
     }
 
     @Test

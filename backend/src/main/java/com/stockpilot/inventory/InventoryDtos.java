@@ -23,7 +23,7 @@ public final class InventoryDtos {
 
     public record ProductResponse(
             UUID id, String sku, String name, String category, String unit,
-            int minimumStock, int leadTimeDays, BigDecimal unitCost, long onHand) {}
+            int minimumStock, int leadTimeDays, BigDecimal unitCost, long onHand, long onOrder) {}
 
     public record MovementRequest(
             @NotNull UUID productId,
@@ -33,12 +33,15 @@ public final class InventoryDtos {
 
     public record MovementResponse(
             UUID id, UUID productId, String productName, StockMovementType type,
-            int quantity, Instant occurredAt, String note) {}
+            int quantity, Instant occurredAt, String note,
+            UUID purchaseOrderId, String purchaseOrderNumber) {}
 
     public record Recommendation(
             UUID productId, String sku, String productName, String unit,
-            long onHand, long demandLast30Days, double averageDailyDemand,
-            int leadTimeDays, int safetyStockDays, long recommendedQuantity,
+            long onHand, long onOrder, long demandLast30Days, double averageDailyDemand,
+            int minimumStock, long targetStock, int leadTimeDays, int safetyStockDays, UUID preferredSupplierId,
+            String preferredSupplierName, String supplierSku, int minimumOrderQuantity,
+            BigDecimal supplierUnitCost, long recommendedQuantity,
             boolean lowConfidence, BigDecimal estimatedCost) {}
 
     public record DashboardResponse(

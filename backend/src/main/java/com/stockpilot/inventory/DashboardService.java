@@ -22,12 +22,12 @@ public class DashboardService {
         List<ProductResponse> productList = inventory.listProducts();
         List<Recommendation> recommendations = inventory.recommendations();
         List<ProductResponse> lowStock = productList.stream()
-                .filter(product -> product.onHand() <= product.minimumStock())
+                .filter(product -> product.onHand() + product.onOrder() < product.minimumStock())
                 .limit(6)
                 .toList();
         long unitsOnHand = productList.stream().mapToLong(ProductResponse::onHand).sum();
         long productsBelowMinimum = productList.stream()
-                .filter(product -> product.onHand() <= product.minimumStock()).count();
+                .filter(product -> product.onHand() + product.onOrder() < product.minimumStock()).count();
         BigDecimal estimatedCost = recommendations.stream()
                 .map(Recommendation::estimatedCost)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);

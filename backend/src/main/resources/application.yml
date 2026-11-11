@@ -20,10 +20,42 @@ spring:
           time_zone: UTC
   flyway:
     enabled: true
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:false}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS:false}
+  session:
+    timeout: 30m
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        secure: ${APP_COOKIE_SECURE:true}
+        same-site: lax
 
 app:
+  auth:
+    public-api-url: ${APP_PUBLIC_API_URL:http://localhost:8081/api}
+    public-web-url: ${APP_PUBLIC_WEB_URL:http://localhost:3000}
+    from-email: ${APP_FROM_EMAIL:no-reply@stockpilot.local}
+    rate-limit-trusted-proxies: ${APP_AUTH_RATE_LIMIT_TRUSTED_PROXIES:}
+    rate-limit-cleanup-delay: ${APP_AUTH_RATE_LIMIT_CLEANUP_DELAY:3600000}
+    cookie-secure: ${APP_COOKIE_SECURE:false}
+    verification-token-hours: 24
+    reset-token-minutes: 30
   replenishment:
     demand-window-days: 30
     safety-stock-days: 3
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  currency:
+    api-url: ${EXCHANGE_RATE_API_URL:https://open.er-api.com}
+    initial-delay: ${EXCHANGE_RATE_INITIAL_DELAY:10000}
+    refresh-delay: ${EXCHANGE_RATE_REFRESH_DELAY:86400000}

@@ -43,17 +43,30 @@ public class StockMovement {
     @Column(length = 300)
     private String note;
 
+    @Column(name = "purchase_order_id")
+    private UUID purchaseOrderId;
+
+    @Column(name = "purchase_order_number", length = 20)
+    private String purchaseOrderNumber;
+
     protected StockMovement() {
     }
 
     public StockMovement(UUID organizationId, UUID productId, StockMovementType type, int quantity,
                          Instant occurredAt, String note) {
+        this(organizationId, productId, type, quantity, occurredAt, note, null, null);
+    }
+
+    public StockMovement(UUID organizationId, UUID productId, StockMovementType type, int quantity,
+                         Instant occurredAt, String note, UUID purchaseOrderId, String purchaseOrderNumber) {
         this.organizationId = organizationId;
         this.productId = productId;
         this.type = type;
         this.quantity = quantity;
         this.occurredAt = occurredAt;
         this.note = note;
+        this.purchaseOrderId = purchaseOrderId;
+        this.purchaseOrderNumber = purchaseOrderNumber;
     }
 
     public UUID getId() { return id; }
@@ -63,4 +76,6 @@ public class StockMovement {
     public int getQuantity() { return quantity; }
     public Instant getOccurredAt() { return occurredAt; }
     public String getNote() { return note; }
+    public UUID getPurchaseOrderId() { return purchaseOrderId; }
+    public String getPurchaseOrderNumber() { return purchaseOrderNumber; }
 }
